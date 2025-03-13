@@ -2,6 +2,7 @@ library(readxl)
 library(foreign)  #to read .dbf
 library(sf)
 library(tidyverse)
+library(ggplot2)
 
 ## Read data
 
@@ -12,7 +13,14 @@ lookup.prev <- read_excel("DB-lookups.xlsx", sheet = "Prevention")
 
 
 #DAFI data from https://doi.org/10.6084/m9.figshare.c.5290792.v4
-DAFI.case <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Record info")
+DAFI.case <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Record info", na='ND')
+
+DAFI.shp <- DAFI.case %>%
+  filter(!is.na(Longitude) & !is.na(Latitude)) %>%
+  st_as_sf(coords = c("Longitude","Latitude"), remove = FALSE)
+
+plot(st_geometry(DAFI.shp))
+
 DAFI.use <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Land use")
 DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Fire Policy")
 
@@ -50,11 +58,19 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 ## Analysis
 
 #prevention 
-DAFI.prev %>% 
+DAFI.prev <- DAFI.prev %>% 
   mutate(`Max Prev` = pmax(`Fire control (0-3)`,
                            `Fire prevention (0-3)`,
                            `Fire extinction (0-3)`,
                            na.rm=T))
+DAFI.prev <- DAFI.prev %>%
+  right_join(DAFI.shp) %>%
+  st_as_sf() %>% 
+  st_set_crs(st_crs(GFUS.shp))
+  
+
+plot(DAFI.prev['Max Prev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
+
 
 
 GFUS.Q15a.regions <- GFUS.raw.split %>%
@@ -69,6 +85,10 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
   st_as_sf()
 
 plot(GFUS.15a.shp['mean15a'])
+
+g <- ggplot() + geom_sf(data = GFUS.15a.shp, aes(fill = mean15a)) + geom_sf(data = DAFI.prev)
+
+g
 
 
 #practices
