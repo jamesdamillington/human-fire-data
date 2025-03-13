@@ -15,7 +15,11 @@ DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'skip', 'skip', 'skip',
 
 DAFI.prev <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Fire suppression", na='ND', col_types=DAFI.prev.ct)
 
-
+DAFI.prev %>% 
+  mutate(`Max Prev` = pmax(`Fire control (0-3)`,
+                           `Fire prevention (0-3)`,
+                           `Fire extinction (0-3)`,
+                           na.rm=T))
   
 
 
@@ -37,6 +41,10 @@ GFUS.use <- read.dbf("data\\Shiny_app\\data\\SH_fire_use_LIFE_SURVEY.dbf")
 GFUS.use <- as_tibble(GFUS.use)
 
 glimpse(GFUS.use)
+
+
+
+
 
 #lookup tables to create consistent classification
 lookup.use <- read_excel("DB-lookups.xlsx", sheet = "Practices")
