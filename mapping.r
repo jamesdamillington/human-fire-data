@@ -28,13 +28,22 @@ DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Fire Policy")
 #col_type for DAFI.prev
 DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'skip', 'skip', 'skip',
                   'numeric', 'skip', 'numeric', 'skip', 'numeric', 'skip', 'skip')
-DAFI.prev <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Fire suppression", na='ND', col_types=DAFI.prev.ct)
+DAFI.prev <- read_excel("data\\DAFI version 1.01.xlsx", 
+                        sheet = "Fire suppression", na='ND', 
+                        col_types=DAFI.prev.ct)
 
 
 #LIFE data from https://doi.org/10.17637/rh.c.5469993
 LIFE.case <- read_excel("data\\Database_V6.xlsx", sheet = "Case")
 LIFE.gov <- read_excel("data\\Database_V6.xlsx", sheet = "Governance")  #column TY
-LIFE.prev <- read_excel("data\\Database_V6.xlsx", sheet = "Fire practices")  #column COTYPE
+
+LIFE.prev.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 20), 'text', rep('skip', 16))
+
+LIFE.prev <- read_excel("data\\Database_V6.xlsx", 
+                        sheet = "Fire practices", na='U',
+                        col_types=LIFE.prev.ct) #column COTYPE
+
+
 
 
 #GFUS data from https://doi.org/10.5281/zenodo.10671047
@@ -64,16 +73,46 @@ DAFI.prev.summ <- DAFI.prev %>%
                            `Fire prevention (0-3)`,
                            `Fire extinction (0-3)`,
                            na.rm=T)) %>%
-  mutate(MaxPrev_f = as.factor(MaxPrev))
+  mutate(MaxPrev = case_when(MaxPrev == 1 ~ 3,
+                             MaxPrev == 2 ~ 2,
+                             MaxPrev == 3 ~ 1,
+                             MaxPrev == 0 ~ NA)) %>%
+  #mutate(MaxPrev_f = as.factor(MaxPrev)) %>%
+  mutate(DB="DAFI") 
 
-DAFI.prev.summ <- DAFI.prev.summ %>%
+DAFI.prev.shp <- DAFI.prev.summ %>%
   right_join(DAFI.shp) %>%
+  rename(ID=`Case Study ID`) %>%
+  select(ID, Latitude, Longitude, MaxPrev, DB)
+
+%>%
   st_as_sf() %>% 
   st_set_crs(st_crs(GFUS.shp))
   
 
 plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
 
+
+
+
+LIFE.prev.summ <- LIFE.prev %>% 
+  mutate(COTYPE = str_replace_all(COTYPE, "[MD]", "0")) %>%
+  mutate(COTYPE = str_replace_all(COTYPE, "[RS]", "1")) %>%
+  mutate(COTYPE = str_replace_all(COTYPE, c("B" = "2", 
+                                            "TC" = "2",
+                                            "TE" = "2",
+                                            "FC" = "2", 
+                                            "G" = "2"))) %>%
+  mutate(MaxPrev = ifelse(grepl("2",COTYPE),2,
+                             ifelse(grepl("1", COTYPE), 1,
+                                    ifelse(grepl("0", COTYPE), 0, NA)))) %>%
+  mutate(DB="LIFE") %>%
+  rename(ID=FID, Latitude=LATITUDE, Longitude=LONGITUDE) %>%
+  select(ID, Latitude, Longitude, MaxPrev, DB) %>%
+  filter(!is.na(Latitude))
+
+
+pointDBs <- DAFI.prev.shp %>% bind_rows(LIFE.prev.summ)
 
 
 GFUS.Q15a.regions <- GFUS.raw.split %>%
@@ -90,19 +129,24 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
 plot(GFUS.15a.shp['mean15a'])
 
 Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
+SAbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='South America'))
 NAbbox <- c(-180, 15, -50, 70)
+EUbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Europe'))
 
+mapbbox <- EUbbox
 
 g <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
   geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
   scale_fill_distiller(palette='Reds') +
-  #new_scale_fill() +
-  geom_sf(data = filter(DAFI.prev.summ, !is.na(MaxPrev_f)), 
-          aes(color=MaxPrev)) +
-  scale_color_distiller('Blues') +
+  new_scale_fill() +
+  geom_point(data = filter(pointDBs, !is.na(MaxPrev)), 
+          aes(fill=MaxPrev, x=Longitude, y=Latitude, shape=DB),colour='darkblue',size=2) +
+  scale_fill_distiller('Blues') +
+  #scale_color_distiller('Blues') +
+  scale_shape_manual(values=c(21,22)) +
   theme_light() +
-  coord_sf(xlim=c(NAbbox[1],NAbbox[3]),ylim=c(NAbbox[2],NAbbox[4]))
+  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
 g
 
