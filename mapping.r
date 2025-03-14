@@ -23,7 +23,16 @@ DAFI.shp <- DAFI.case %>%
 plot(st_geometry(DAFI.shp))
 
 DAFI.use <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Land use")
-DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Fire Policy")
+
+DAFI.gov.ct <- c('text', rep('skip', 8),'text', 'skip', 'skip',
+                 'text',rep('skip',4),'text',rep('skip',5))
+
+DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx", 
+                       sheet = "Fire Policy", na='ND',
+                       col_types=DAFI.gov.ct)
+
+
+
 
 #col_type for DAFI.prev
 DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'skip', 'skip', 'skip',
@@ -85,9 +94,9 @@ DAFI.prev.shp <- DAFI.prev.summ %>%
   rename(ID=`Case Study ID`) %>%
   select(ID, Latitude, Longitude, MaxPrev, DB)
 
-%>%
-  st_as_sf() %>% 
-  st_set_crs(st_crs(GFUS.shp))
+#%>%
+#  st_as_sf() %>% 
+#  st_set_crs(st_crs(GFUS.shp))
   
 
 plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
@@ -155,12 +164,45 @@ g
 
 
 
+
+
+
 #governance
 
+#should Regulations trump Incentives trump Voluntary??   
+DAFI.gov.summ <- DAFI.gov %>%
+  mutate(governance = case_when(grepl('Yes',`Fire restricted`) ~ 'Regulation',
+                                grepl('Yes',`Fire banned`) ~ 'Regulation',
+                                grepl('Yes',`Economic incentives`) ~ 'Incentive',
+                                .default=NA)) %>%
+  filter(!is.na(governance))
 
 
+#should Regulations trump Incentives trump Voluntary??   
+GFUS.Q16a.regions <- GFUS.raw.split %>%
+  select(Q1b, Q16a) %>%
+  mutate(Q1b = as.numeric(Q1b)) %>%
+  mutate(gov = case_when(grepl('1|2|3|4',Q16a) ~ 'Regulation',
+                         grepl('5|6',Q16a) ~ 'Incentive',
+                         grepl('7',Q16a) ~ 'Voluntary',
+                         .default=NA)) %>%
+  filter(!is.na(gov))  %>%
+  group_by(Q1b) %>%
+  summarise("RegN" = sum(gov=='Regulation'),
+            "IncN" = sum(gov=='Incentive'),
+            "VolN" = sum(gov=='Voluntary')) %>%
+  mutate(governance = ifelse(RegN > 0, "Regulation",
+                             ifelse(IncN > 0, "Incentive",
+                                    ifelse(VolN > 0 , "Voluntary", NA))))
 
+GFUS.16a.shp <- GFUS.Q16a.regions %>%
+  right_join(GFUS.shp, join_by('Q1b'=='regnum')) %>%
+  st_as_sf()
 
+plot(GFUS.16a.shp['governance'])
 
+#CHALLENGE!
+#LIFE looks like governance instances can be linked only to sources, not to cases
+#and it is cases that has point locations... 
 
 
