@@ -78,10 +78,12 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 
 #prevention 
 DAFI.prev.summ <- DAFI.prev %>% 
+  #get the maximum level from across the different types of prevention
   mutate(MaxPrev = pmax(`Fire control (0-3)`,
                            `Fire prevention (0-3)`,
                            `Fire extinction (0-3)`,
                            na.rm=T)) %>%
+  #reverse the scale to match GFUS
   mutate(MaxPrev = case_when(MaxPrev == 1 ~ 3,
                              MaxPrev == 2 ~ 2,
                              MaxPrev == 3 ~ 1,
@@ -89,6 +91,7 @@ DAFI.prev.summ <- DAFI.prev %>%
   #mutate(MaxPrev_f = as.factor(MaxPrev)) %>%
   mutate(DB="DAFI") 
 
+#get coords and select necessary cols
 DAFI.prev.shp <- DAFI.prev.summ %>%
   right_join(DAFI.shp) %>%
   rename(ID=`Case Study ID`) %>%
@@ -105,6 +108,7 @@ plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use ra
 
 
 LIFE.prev.summ <- LIFE.prev %>% 
+  #set the scale to match GFUS
   mutate(COTYPE = str_replace_all(COTYPE, "[MD]", "0")) %>%
   mutate(COTYPE = str_replace_all(COTYPE, "[RS]", "1")) %>%
   mutate(COTYPE = str_replace_all(COTYPE, c("B" = "2", 
@@ -120,16 +124,16 @@ LIFE.prev.summ <- LIFE.prev %>%
   select(ID, Latitude, Longitude, MaxPrev, DB) %>%
   filter(!is.na(Latitude))
 
-
+#append DAFI and LIFE
 pointDBs <- DAFI.prev.shp %>% bind_rows(LIFE.prev.summ)
 
 
+#calc summaries of maximum prevention level in a given region
 GFUS.Q15a.regions <- GFUS.raw.split %>%
   select(Q1b, Q15a) %>%
   group_by(Q1b) %>%
   summarise(mean15a = mean(Q15a), max15a=max(Q15a), min15a=min(Q15a), count=n()) %>%
   mutate(Q1b = as.numeric(Q1b)) 
-
 
 GFUS.15a.shp <- GFUS.Q15a.regions %>%
   right_join(GFUS.shp, join_by('Q1b'=='regnum')) %>%
@@ -137,6 +141,7 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
 
 plot(GFUS.15a.shp['mean15a'])
 
+#spatial zoom
 Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
 SAbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='South America'))
 NAbbox <- c(-180, 15, -50, 70)
@@ -144,6 +149,7 @@ EUbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Europe'))
 
 mapbbox <- EUbbox
 
+#plot
 g <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
   geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
@@ -169,7 +175,8 @@ g
 
 #governance
 
-#should Regulations trump Incentives trump Voluntary??   
+#should Regulations trump Incentives trump Voluntary??  
+#or can we find some way to show when there are multiple  
 DAFI.gov.summ <- DAFI.gov %>%
   mutate(governance = case_when(grepl('Yes',`Fire restricted`) ~ 'Regulation',
                                 grepl('Yes',`Fire banned`) ~ 'Regulation',
@@ -179,6 +186,7 @@ DAFI.gov.summ <- DAFI.gov %>%
 
 
 #should Regulations trump Incentives trump Voluntary??   
+#or can we find some way to show when there are multiple
 GFUS.Q16a.regions <- GFUS.raw.split %>%
   select(Q1b, Q16a) %>%
   mutate(Q1b = as.numeric(Q1b)) %>%
