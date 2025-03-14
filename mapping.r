@@ -3,6 +3,7 @@ library(foreign)  #to read .dbf
 library(sf)
 library(tidyverse)
 library(ggplot2)
+library(ggnewscale)
 
 ## Read data
 
@@ -58,18 +59,20 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 ## Analysis
 
 #prevention 
-DAFI.prev <- DAFI.prev %>% 
-  mutate(`Max Prev` = pmax(`Fire control (0-3)`,
+DAFI.prev.summ <- DAFI.prev %>% 
+  mutate(MaxPrev = pmax(`Fire control (0-3)`,
                            `Fire prevention (0-3)`,
                            `Fire extinction (0-3)`,
-                           na.rm=T))
-DAFI.prev <- DAFI.prev %>%
+                           na.rm=T)) %>%
+  mutate(MaxPrev_f = as.factor(MaxPrev))
+
+DAFI.prev.summ <- DAFI.prev.summ %>%
   right_join(DAFI.shp) %>%
   st_as_sf() %>% 
   st_set_crs(st_crs(GFUS.shp))
   
 
-plot(DAFI.prev['Max Prev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
+plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
 
 
 
@@ -77,7 +80,7 @@ GFUS.Q15a.regions <- GFUS.raw.split %>%
   select(Q1b, Q15a) %>%
   group_by(Q1b) %>%
   summarise(mean15a = mean(Q15a), max15a=max(Q15a), min15a=min(Q15a), count=n()) %>%
-  mutate(Q1b = as.numeric(Q1b))
+  mutate(Q1b = as.numeric(Q1b)) 
 
 
 GFUS.15a.shp <- GFUS.Q15a.regions %>%
@@ -86,7 +89,20 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
 
 plot(GFUS.15a.shp['mean15a'])
 
-g <- ggplot() + geom_sf(data = GFUS.15a.shp, aes(fill = mean15a)) + geom_sf(data = DAFI.prev)
+Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
+NAbbox <- c(-180, 15, -50, 70)
+
+
+g <- ggplot() + 
+  geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
+  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
+  scale_fill_distiller(palette='Reds') +
+  #new_scale_fill() +
+  geom_sf(data = filter(DAFI.prev.summ, !is.na(MaxPrev_f)), 
+          aes(color=MaxPrev)) +
+  scale_color_distiller('Blues') +
+  theme_light() +
+  coord_sf(xlim=c(NAbbox[1],NAbbox[3]),ylim=c(NAbbox[2],NAbbox[4]))
 
 g
 
