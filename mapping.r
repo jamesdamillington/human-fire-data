@@ -51,8 +51,7 @@ LIFE.prev.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 20), 'text',
 LIFE.prev <- read_excel("data\\Database_V6.xlsx", 
                         sheet = "Fire practices", na='U',
                         col_types=LIFE.prev.ct) #column COTYPE
-
-
+ 
 
 
 #GFUS data from https://doi.org/10.5281/zenodo.10671047
@@ -183,20 +182,33 @@ GFUS.Q5.regions <- GFUS.raw.split %>%
   select(Q1b, Q5a,Q5c, Q5e) %>%
   group_by(Q1b) %>%
   #replaces NA in Q5a with the first non-NA value within each group
-  #mutate(Q5a = replace_na(Q5a, first(na.omit(Q5a)))) %>%  
-  mutate_at(c("Q5a", "Q5c", "Q5e"), ~replace_na(., first(na.omit(.)))) %>%
+  mutate(Q5a = replace_na(Q5a, first(na.omit(Q5a)))) %>%  
+  #mutate_at(c("Q5a", "Q5c", "Q5e"), ~replace_na(., first(na.omit(.)))) %>%
   #combine all strings in the group into a single string 
-  #mutate(allA = paste0(Q5a, collapse = ",")) %>%
-  mutate_at(c("Q5a", "Q5c", "Q5e"), ~paste0(., collapse = ",")) %>%
+  mutate(allA = paste0(Q5a, collapse = ",")) %>%
+  #mutate_at(c("Q5a", "Q5c", "Q5e"), ~paste0(., collapse = ",")) %>%
   #re-assign 'NA' characters that have been created to NA
-  #mutate(allA = na_if(allA, 'NA')) %>%
-  mutate_at(c("Q5a", "Q5c", "Q5e"), ~na_if(., 'NA')) %>%
+  mutate(allA = na_if(allA, 'NA')) %>%
+  #mutate_at(c("Q5a", "Q5c", "Q5e"), ~na_if(., 'NA')) %>%
   #count unique 'words' (i.e. uses)
-  #mutate(countA = sapply(allA, count_distinct_words))
-  mutate_at(c("Q5a", "Q5c", "Q5e"), ~sapply(., count_distinct_words)) %>%
-  distinct(Q1b, .keep_all=T)
+  mutate(countA = sapply(allA, count_distinct_words)) %>%
+  #mutate_at(c("Q5a", "Q5c", "Q5e"), ~sapply(., count_distinct_words)) %>%
+  distinct(Q1b, .keep_all=T) %>%
+  #mutate(practices = rowSums(across(c("Q5a", "Q5c", "Q5e")))) %>%
+  mutate_at("Q1b", as.numeric )
   
 
+GFUS.Q5.shp <- GFUS.Q5.regions %>%
+  right_join(GFUS.shp, join_by('Q1b'=='regnum')) %>%
+  st_as_sf()
+
+pmap <- ggplot() + 
+  geom_sf(data = st_geometry(GFUS.Q5.shp), color='lightgrey') +
+  geom_sf(data = GFUS.Q5.shp, aes(fill = countA), color=NA) + 
+  scale_fill_distiller(palette='Reds') +
+  new_scale_fill() 
+
+#add LIFE points scaled by number of practices
 
 
 #governance
