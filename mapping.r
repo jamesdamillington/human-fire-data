@@ -160,7 +160,7 @@ g <- ggplot() +
   scale_fill_distiller('Blues') +
   #scale_color_distiller('Blues') +
   scale_shape_manual(values=c(21,22)) +
-  theme_light() +
+  theme_light() #+
   coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
 g
@@ -168,8 +168,34 @@ g
 
 #practices
 
+# Function to count distinct words in a string
+count_distinct_words <- function(x) {
+  str_split(x, ",") %>%
+    unlist() %>%
+    unique() %>%
+    length()
+}
 
 
+#count unique practices by user
+#does not check if practice is the same between users as practice IDs are not consistent across users - see data_dictionary.xlsx)
+GFUS.Q5.regions <- GFUS.raw.split %>%
+  select(Q1b, Q5a,Q5c, Q5e) %>%
+  group_by(Q1b) %>%
+  #replaces NA in Q5a with the first non-NA value within each group
+  #mutate(Q5a = replace_na(Q5a, first(na.omit(Q5a)))) %>%  
+  mutate_at(c("Q5a", "Q5c", "Q5e"), ~replace_na(., first(na.omit(.)))) %>%
+  #combine all strings in the group into a single string 
+  #mutate(allA = paste0(Q5a, collapse = ",")) %>%
+  mutate_at(c("Q5a", "Q5c", "Q5e"), ~paste0(., collapse = ",")) %>%
+  #re-assign 'NA' characters that have been created to NA
+  #mutate(allA = na_if(allA, 'NA')) %>%
+  mutate_at(c("Q5a", "Q5c", "Q5e"), ~na_if(., 'NA')) %>%
+  #count unique 'words' (i.e. uses)
+  #mutate(countA = sapply(allA, count_distinct_words))
+  mutate_at(c("Q5a", "Q5c", "Q5e"), ~sapply(., count_distinct_words)) %>%
+  distinct(Q1b, .keep_all=T)
+  
 
 
 
