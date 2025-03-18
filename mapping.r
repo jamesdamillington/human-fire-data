@@ -51,8 +51,14 @@ LIFE.prev.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 20), 'text',
 LIFE.prev <- read_excel("data\\Database_V6.xlsx", 
                         sheet = "Fire practices", na='U',
                         col_types=LIFE.prev.ct) #column COTYPE
- 
 
+LIFE.use.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 3), 'text', rep('skip', 33)) 
+
+
+LIFE.use <- read_excel("data\\Database_V6.xlsx", 
+                        sheet = "Fire practices", na='U',
+                        col_types=LIFE.use.ct) %>%   #column FUPU2 
+  mutate(FUPU2 = na_if(FUPU2, 'X'))
 
 #GFUS data from https://doi.org/10.5281/zenodo.10671047
 #shapefile data (for spatial plotting)
@@ -145,8 +151,9 @@ Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
 SAbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='South America'))
 NAbbox <- c(-180, 15, -50, 70)
 EUbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Europe'))
+world <- c(-180, -60, 180, 80)
 
-mapbbox <- EUbbox
+mapbbox <- Afbbox
 
 #plot
 g <- ggplot() + 
@@ -191,7 +198,7 @@ GFUS.Q5.regions <- GFUS.raw.split %>%
   mutate(allA = na_if(allA, 'NA')) %>%
   #mutate_at(c("Q5a", "Q5c", "Q5e"), ~na_if(., 'NA')) %>%
   #count unique 'words' (i.e. uses)
-  mutate(countA = sapply(allA, count_distinct_words)) %>%
+  mutate(GFUS_SH = sapply(allA, count_distinct_words)) %>%
   #mutate_at(c("Q5a", "Q5c", "Q5e"), ~sapply(., count_distinct_words)) %>%
   distinct(Q1b, .keep_all=T) %>%
   #mutate(practices = rowSums(across(c("Q5a", "Q5c", "Q5e")))) %>%
@@ -202,13 +209,35 @@ GFUS.Q5.shp <- GFUS.Q5.regions %>%
   right_join(GFUS.shp, join_by('Q1b'=='regnum')) %>%
   st_as_sf()
 
+
+
+LIFE.use <- LIFE.use %>%
+  #work on cases not individual practices 
+  mutate(CaseID = sub("\\.*\\d*$", "", FID)) %>%
+  group_by(CaseID) %>%
+  #replaces NA in Q5a with the first non-NA value within each group
+  mutate(FUPU2 = replace_na(FUPU2, first(na.omit(FUPU2))))  %>%
+  #combine all strings in the group into a single string 
+  mutate(allA = paste0(FUPU2, collapse = ",")) %>%
+  #count unique 'words' (i.e. uses)
+  mutate(LIFE_SH = sapply(allA, count_distinct_words)) %>%
+  #mutate_at(c("Q5a", "Q5c", "Q5e"), ~sapply(., count_distinct_words)) %>%
+  distinct(CaseID, .keep_all=T) 
+
+
+mapbbox <- world
+
 pmap <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.Q5.shp), color='lightgrey') +
-  geom_sf(data = GFUS.Q5.shp, aes(fill = countA), color=NA) + 
+  geom_sf(data = filter(GFUS.Q5.shp, !is.na(GFUS_SH)), aes(fill = GFUS_SH), color=NA) + 
   scale_fill_distiller(palette='Reds') +
-  new_scale_fill() 
+  #new_scale_fill() +
+  geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)), 
+             aes(size=LIFE_SH, x=LONGITUDE, y=LATITUDE),colour='blue', alpha=0.2) +
+  theme_light() +
+  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
-#add LIFE points scaled by number of practices
+pmap
 
 
 #governance
