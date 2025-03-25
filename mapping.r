@@ -4,6 +4,7 @@ library(sf)
 library(tidyverse)
 library(ggplot2)
 library(ggnewscale)
+library(terra)
 
 ## Read data
 
@@ -30,8 +31,6 @@ DAFI.gov.ct <- c('text', rep('skip', 8),'text', 'skip', 'skip',
 DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx", 
                        sheet = "Fire Policy", na='ND',
                        col_types=DAFI.gov.ct)
-
-
 
 
 #col_type for DAFI.prev
@@ -77,7 +76,17 @@ GFUS.raw <- read_excel("data\\Shiny_app\\Global_human_fire_data\\raw_data\\Surve
 GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 
 
+GFEDd16 <- rast("data\\GFEDdiff_2016.nc", drivers="NETCDF")
+GFEDd16
 
+ggplot() +
+  geom_raster(data = as.data.frame(GFEDd16, xy = TRUE), 
+              aes(x = x, y = y, fill = BAdiffc)) + 
+  scale_fill_viridis_c() +
+  coord_quickmap() +
+  geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
+             aes(x=LONGITUDE, y=LATITUDE), size=1,colour='red', alpha=0.4)
+  
 
 ## Analysis
 
@@ -108,8 +117,6 @@ DAFI.prev.shp <- DAFI.prev.summ %>%
   
 
 plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
-
-
 
 
 LIFE.prev.summ <- LIFE.prev %>% 
@@ -148,12 +155,17 @@ plot(GFUS.15a.shp['mean15a'])
 
 #spatial zoom
 Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
+Asbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Asia'))
 SAbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='South America'))
+Ozbbox <- c(110, -50, 180, -10)
 NAbbox <- c(-180, 15, -50, 70)
 EUbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Europe'))
+
+SAsia <- c(70, -10, 160, 35)
+NAsia <- c(45, 20, 170, 70)
 world <- c(-180, -60, 180, 80)
 
-mapbbox <- Afbbox
+mapbbox <- SAsia
 
 #plot
 g <- ggplot() + 
@@ -225,7 +237,7 @@ LIFE.use <- LIFE.use %>%
   distinct(CaseID, .keep_all=T) 
 
 
-mapbbox <- world
+mapbbox <- SAbbox
 
 pmap <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.Q5.shp), color='lightgrey') +
@@ -233,7 +245,7 @@ pmap <- ggplot() +
   scale_fill_distiller(palette='Reds') +
   #new_scale_fill() +
   geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)), 
-             aes(size=LIFE_SH, x=LONGITUDE, y=LATITUDE),colour='blue', alpha=0.2) +
+             aes(size=LIFE_SH, x=LONGITUDE, y=LATITUDE),colour='blue', alpha=0.4) +
   theme_light() +
   coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
