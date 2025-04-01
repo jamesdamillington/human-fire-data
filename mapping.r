@@ -5,6 +5,23 @@ library(tidyverse)
 library(ggplot2)
 library(ggnewscale)
 library(terra)
+library(colorspace)
+
+
+#spatial zoom
+Afbb <- c(-20,-35,55,35)
+Asbb <- c(30,-10,160,80)
+SAbb <- c(-85, -60, -30, 10)
+Ozbb <- c(110, -50, 180, -10)
+NAbb <- c(-180, 15, -50, 70)
+EUbb <- c(-10, 35, 45, 70)
+
+SAsiabb <- c(70, -10, 160, 35)
+NAsiabb <- c(45, 20, 170, 70)
+worldbb <- c(-180, -60, 180, 80)
+
+bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb, worldbb)
+
 
 ## Read data
 
@@ -76,17 +93,7 @@ GFUS.raw <- read_excel("data\\Shiny_app\\Global_human_fire_data\\raw_data\\Surve
 GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 
 
-GFEDd16 <- rast("data\\GFEDdiff_2016.nc", drivers="NETCDF")
-GFEDd16
 
-ggplot() +
-  geom_raster(data = as.data.frame(GFEDd16, xy = TRUE), 
-              aes(x = x, y = y, fill = BAdiffc)) + 
-  scale_fill_viridis_c() +
-  coord_quickmap() +
-  geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
-             aes(x=LONGITUDE, y=LATITUDE), size=1,colour='red', alpha=0.4)
-  
 
 ## Analysis
 
@@ -153,19 +160,9 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
 
 plot(GFUS.15a.shp['mean15a'])
 
-#spatial zoom
-Afbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Africa'))
-Asbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Asia'))
-SAbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='South America'))
-Ozbbox <- c(110, -50, 180, -10)
-NAbbox <- c(-180, 15, -50, 70)
-EUbbox <- st_bbox(filter(GFUS.15a.shp, CONTINENT=='Europe'))
 
-SAsia <- c(70, -10, 160, 35)
-NAsia <- c(45, 20, 170, 70)
-world <- c(-180, -60, 180, 80)
 
-mapbbox <- SAsia
+mapbbox <- SAbbox
 
 #plot
 g <- ggplot() + 
@@ -173,13 +170,17 @@ g <- ggplot() +
   geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
   scale_fill_distiller(palette='Reds') +
   new_scale_fill() +
-  geom_point(data = filter(pointDBs, !is.na(MaxPrev)), 
-          aes(fill=MaxPrev, x=Longitude, y=Latitude, shape=DB),colour='darkblue',size=2) +
-  scale_fill_distiller('Blues') +
-  #scale_color_distiller('Blues') +
-  scale_shape_manual(values=c(21,22)) +
-  theme_light() #+
-  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
+  geom_point(data = filter(DAFI.prev.shp, !is.na(MaxPrev)), 
+             aes(fill=MaxPrev, x=Longitude, y=Latitude),
+             size=1,alpha=0.5,color='black',shape=21) +
+  #geom_point(data = filter(pointDBs, !is.na(MaxPrev)), 
+  #        aes(fill=MaxPrev, x=Longitude, y=Latitude, shape=DB),colour='darkblue',size=2) +
+  scale_fill_distiller(palette='Reds') +
+  #scale_color_distiller(palette='Reds') +
+  #scale_shape_manual(values=c(21,22)) +
+  theme_light() 
+#+
+#  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
 g
 
@@ -293,3 +294,37 @@ plot(GFUS.16a.shp['governance'])
 #and it is cases that has point locations... 
 
 
+
+##GFED  - see GFED.r
+
+GFED16_dBF <- rast("data\\GFED_dBF_2016.nc", drivers="NETCDF")
+GFED16_dBF
+
+GFED16_dBF_pal <- divergentColors("blue", "red",
+                                  min.value=minmax(GFED_dBF*100)[1], 
+                                  max.value=minmax(GFED_dBF*100)[2],
+                                  mid.value=0, mid.color="lightgrey")
+
+
+mapbbox <- Afbbox
+
+for(mapbbox in bboxes){
+  
+  g <- ggplot() +
+    geom_sf(data = st_geometry(GFUS.shp), color='lightgrey') +
+    geom_raster(data = as.data.frame(GFED16_dBF, xy = TRUE), 
+                aes(x = x, y = y, fill = dBF)) + 
+    #scale_fill_viridis_c() +
+    scale_fill_continuous_divergingx(palette='RdYlBu') +
+    coord_quickmap() +
+    geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
+    geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
+               aes(x=LONGITUDE, y=LATITUDE), 
+               size=0.5,shape=21,fill='red',colour='red', alpha=0.5) +
+    #coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
+    theme_light() +
+    ggtitle("2016 GFED Difference (cell fraction) - LIFE Practices Data")
+
+  plot(g)
+ 
+}
