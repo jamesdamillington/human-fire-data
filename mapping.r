@@ -13,14 +13,14 @@ Afbb <- c(-20,-35,55,35)
 Asbb <- c(30,-10,160,80)
 SAbb <- c(-85, -60, -30, 10)
 Ozbb <- c(110, -50, 180, -10)
-NAbb <- c(-180, 15, -50, 70)
+NAbb <- c(-170, 15, -50, 70)
 EUbb <- c(-10, 35, 45, 70)
 
 SAsiabb <- c(70, -10, 160, 35)
 NAsiabb <- c(45, 20, 170, 70)
 worldbb <- c(-180, -60, 180, 80)
 
-bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb, worldbb)
+bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb)
 
 
 ## Read data
@@ -51,8 +51,9 @@ DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx",
 
 
 #col_type for DAFI.prev
-DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'skip', 'skip', 'skip',
+DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'text', 'skip', 'skip',
                   'numeric', 'skip', 'numeric', 'skip', 'numeric', 'skip', 'skip')
+
 DAFI.prev <- read_excel("data\\DAFI version 1.01.xlsx", 
                         sheet = "Fire suppression", na='ND', 
                         col_types=DAFI.prev.ct)
@@ -101,29 +102,34 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 DAFI.prev.summ <- DAFI.prev %>% 
   #get the maximum level from across the different types of prevention
   mutate(MaxPrev = pmax(`Fire control (0-3)`,
-                           `Fire prevention (0-3)`,
-                           `Fire extinction (0-3)`,
-                           na.rm=T)) %>%
-  #reverse the scale to match GFUS
+                        `Fire prevention (0-3)`,
+                        `Fire extinction (0-3)`,
+                        na.rm=T)) %>%
+  #reverse the scale to match GFUS (1 is high)
   mutate(MaxPrev = case_when(MaxPrev == 1 ~ 3,
                              MaxPrev == 2 ~ 2,
                              MaxPrev == 3 ~ 1,
                              MaxPrev == 0 ~ NA)) %>%
-  #mutate(MaxPrev_f = as.factor(MaxPrev)) %>%
   mutate(DB="DAFI") 
+
 
 #get coords and select necessary cols
 DAFI.prev.shp <- DAFI.prev.summ %>%
   right_join(DAFI.shp) %>%
   rename(ID=`Case Study ID`) %>%
-  select(ID, Latitude, Longitude, MaxPrev, DB)
+  select(ID, AFT, Latitude, Longitude, MaxPrev, DB)
 
-#%>%
-#  st_as_sf() %>% 
-#  st_set_crs(st_crs(GFUS.shp))
-  
+#DAFI.prev.AFTs <- unique(DAFI.prev$AFT)
 
-plot(DAFI.prev['MaxPrev'])  #this has >2000 points which is quite messy - use raster like in FIRE paper?
+DAFI.prev.shp.SNGO <- DAFI.prev.shp %>%
+  filter(AFT == "Fire suppression agent" |
+           AFT == "Conservationist (Fire exclusion)" |
+           AFT == "State land manager" |
+           AFT == "Conservationist" |
+           AFT == "Conservationist (Pyro-diversity)")
+
+DAFI.prev.shp.SNGO.n306 <- DAFI.prev.shp.SNGO %>%
+  filter(!grepl("306",ID))
 
 
 LIFE.prev.summ <- LIFE.prev %>% 
@@ -149,7 +155,8 @@ pointDBs <- DAFI.prev.shp %>% bind_rows(LIFE.prev.summ)
 
 #calc summaries of maximum prevention level in a given region
 GFUS.Q15a.regions <- GFUS.raw.split %>%
-  select(Q1b, Q15a) %>%
+  select(Q1b, Q15a, Q15b) %>%
+  filter(Q15b > 3) %>%   #only use records with high or very high confidence
   group_by(Q1b) %>%
   summarise(mean15a = mean(Q15a), max15a=max(Q15a), min15a=min(Q15a), count=n()) %>%
   mutate(Q1b = as.numeric(Q1b)) 
@@ -162,28 +169,47 @@ plot(GFUS.15a.shp['mean15a'])
 
 
 
-mapbbox <- SAbbox
+mapbbox <- NAbb
 
+for(mapbbox in bboxes){
 #plot
 g <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
-  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
+  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), 
+          color=NA) + 
   scale_fill_distiller(palette='Reds') +
   new_scale_fill() +
-  geom_point(data = filter(DAFI.prev.shp, !is.na(MaxPrev)), 
+  #geom_point(data = filter(DAFI.prev.shp, !is.na(MaxPrev)), 
+  #geom_point(data = filter(DAFI.prev.shp.SNGO, !is.na(MaxPrev)), 
+  geom_point(data = filter(DAFI.prev.shp.SNGO.n306, !is.na(MaxPrev)), 
              aes(fill=MaxPrev, x=Longitude, y=Latitude),
-             size=1,alpha=0.5,color='black',shape=21) +
-  #geom_point(data = filter(pointDBs, !is.na(MaxPrev)), 
-  #        aes(fill=MaxPrev, x=Longitude, y=Latitude, shape=DB),colour='darkblue',size=2) +
+             size=2,shape=21,,colour='black', alpha=1) +
   scale_fill_distiller(palette='Reds') +
-  #scale_color_distiller(palette='Reds') +
-  #scale_shape_manual(values=c(21,22)) +
-  theme_light() 
-#+
+  theme_light() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))  +
+  #ggtitle("Supp/Prev/Control (1 high) - GFUS Polys - DAFI Points (All)") +
+  ggtitle("Supp/Prev/Control (1 high) - GFUS Polys - DAFI Points (State, NGO, no #306)") 
+  
+  
+
+#old plot for both LIFE and DAFI
+#g <- ggplot() + 
+#  geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
+#  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), 
+#          color=NA) + 
+#  scale_fill_distiller(palette='Reds', guide= "none") +
+#  new_scale_fill() +
+#  geom_point(data = filter(pointDBs, !is.na(MaxPrev)), 
+#          aes(fill=MaxPrev, x=Longitude, y=Latitude, shape=DB),colour='darkblue',size=2) +
+#  scale_fill_distiller(palette='Reds') +
+#  scale_shape_manual(values=c(21,22)) +
+#  theme_light() +
 #  coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))
 
-g
-
+print(g)
+}
 
 #practices
 
@@ -300,13 +326,9 @@ plot(GFUS.16a.shp['governance'])
 GFED16_dBF <- rast("data\\GFED_dBF_2016.nc", drivers="NETCDF")
 GFED16_dBF
 
-GFED16_dBF_pal <- divergentColors("blue", "red",
-                                  min.value=minmax(GFED_dBF*100)[1], 
-                                  max.value=minmax(GFED_dBF*100)[2],
-                                  mid.value=0, mid.color="lightgrey")
 
 
-mapbbox <- Afbbox
+mapbbox <- Afbb
 
 for(mapbbox in bboxes){
   
@@ -314,15 +336,16 @@ for(mapbbox in bboxes){
     geom_sf(data = st_geometry(GFUS.shp), color='lightgrey') +
     geom_raster(data = as.data.frame(GFED16_dBF, xy = TRUE), 
                 aes(x = x, y = y, fill = dBF)) + 
-    #scale_fill_viridis_c() +
     scale_fill_continuous_divergingx(palette='RdYlBu') +
     coord_quickmap() +
     geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
     geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
                aes(x=LONGITUDE, y=LATITUDE), 
-               size=0.5,shape=21,fill='red',colour='red', alpha=0.5) +
-    #coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
+               size=1,shape=21,fill='red',colour='black', alpha=0.5, stroke=0.2) +
+    coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
     theme_light() +
+    theme(axis.title.x = element_blank(),
+                axis.title.y = element_blank()) +
     ggtitle("2016 GFED Difference (cell fraction) - LIFE Practices Data")
 
   plot(g)
