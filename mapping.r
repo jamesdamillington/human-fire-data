@@ -25,12 +25,6 @@ bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb)
 
 ## Read data
 
-#lookup tables to create consistent classifications
-lookup.use <- read_excel("DB-lookups.xlsx", sheet = "Practices")
-lookup.gov <- read_excel("DB-lookups.xlsx", sheet = "Governance")
-lookup.prev <- read_excel("DB-lookups.xlsx", sheet = "Prevention")
-
-
 #DAFI data from https://doi.org/10.6084/m9.figshare.c.5290792.v4
 DAFI.case <- read_excel("data\\DAFI version 1.01.xlsx", sheet = "Record info", na='ND')
 
@@ -50,24 +44,24 @@ DAFI.gov <- read_excel("data\\DAFI version 1.01.xlsx",
                        col_types=DAFI.gov.ct)
 
 
-#col_type for DAFI.prev
-DAFI.prev.ct <- c('text', 'skip',  'skip', 'skip', 'text', 'skip', 'skip',
+#col_type for DAFI.supp
+DAFI.supp.ct <- c('text', 'skip',  'skip', 'skip', 'text', 'skip', 'skip',
                   'numeric', 'skip', 'numeric', 'skip', 'numeric', 'skip', 'skip')
 
-DAFI.prev <- read_excel("data\\DAFI version 1.01.xlsx", 
+DAFI.supp <- read_excel("data\\DAFI version 1.01.xlsx", 
                         sheet = "Fire suppression", na='ND', 
-                        col_types=DAFI.prev.ct)
+                        col_types=DAFI.supp.ct)
 
 
 #LIFE data from https://doi.org/10.17637/rh.c.5469993
 LIFE.case <- read_excel("data\\Database_V6.xlsx", sheet = "Case")
 LIFE.gov <- read_excel("data\\Database_V6.xlsx", sheet = "Governance")  #column TY
 
-LIFE.prev.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 20), 'text', rep('skip', 16))
+LIFE.supp.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 20), 'text', rep('skip', 16))
 
-LIFE.prev <- read_excel("data\\Database_V6.xlsx", 
+LIFE.supp <- read_excel("data\\Database_V6.xlsx", 
                         sheet = "Fire practices", na='U',
-                        col_types=LIFE.prev.ct) #column COTYPE
+                        col_types=LIFE.supp.ct) #column COTYPE
 
 LIFE.use.ct <- c('text', 'text', 'numeric', 'numeric', rep('skip', 3), 'text', rep('skip', 33)) 
 
@@ -99,7 +93,7 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 ## Analysis
 
 #prevention 
-DAFI.prev.summ <- DAFI.prev %>% 
+DAFI.supp.summ <- DAFI.supp %>% 
   #get the maximum level from across the different types of prevention
   mutate(MaxPrev = pmax(`Fire control (0-3)`,
                         `Fire prevention (0-3)`,
@@ -114,25 +108,25 @@ DAFI.prev.summ <- DAFI.prev %>%
 
 
 #get coords and select necessary cols
-DAFI.prev.shp <- DAFI.prev.summ %>%
+DAFI.supp.shp <- DAFI.supp.summ %>%
   right_join(DAFI.shp) %>%
   rename(ID=`Case Study ID`) %>%
   select(ID, AFT, Latitude, Longitude, MaxPrev, DB)
 
-#DAFI.prev.AFTs <- unique(DAFI.prev$AFT)
+#DAFI.supp.AFTs <- unique(DAFI.supp$AFT)
 
-DAFI.prev.shp.SNGO <- DAFI.prev.shp %>%
+DAFI.supp.shp.SNGO <- DAFI.supp.shp %>%
   filter(AFT == "Fire suppression agent" |
            AFT == "Conservationist (Fire exclusion)" |
            AFT == "State land manager" |
            AFT == "Conservationist" |
            AFT == "Conservationist (Pyro-diversity)")
 
-DAFI.prev.shp.SNGO.n306 <- DAFI.prev.shp.SNGO %>%
+DAFI.supp.shp.SNGO.n306 <- DAFI.supp.shp.SNGO %>%
   filter(!grepl("306",ID))
 
 
-LIFE.prev.summ <- LIFE.prev %>% 
+LIFE.supp.summ <- LIFE.supp %>% 
   #set the scale to match GFUS
   mutate(COTYPE = str_replace_all(COTYPE, "[MD]", "0")) %>%
   mutate(COTYPE = str_replace_all(COTYPE, "[RS]", "1")) %>%
@@ -150,7 +144,7 @@ LIFE.prev.summ <- LIFE.prev %>%
   filter(!is.na(Latitude))
 
 #append DAFI and LIFE
-pointDBs <- DAFI.prev.shp %>% bind_rows(LIFE.prev.summ)
+pointDBs <- DAFI.supp.shp %>% bind_rows(LIFE.supp.summ)
 
 
 #calc summaries of maximum prevention level in a given region
@@ -179,9 +173,9 @@ g <- ggplot() +
           color=NA) + 
   scale_fill_distiller(palette='Reds') +
   new_scale_fill() +
-  #geom_point(data = filter(DAFI.prev.shp, !is.na(MaxPrev)), 
-  #geom_point(data = filter(DAFI.prev.shp.SNGO, !is.na(MaxPrev)), 
-  geom_point(data = filter(DAFI.prev.shp.SNGO.n306, !is.na(MaxPrev)), 
+  #geom_point(data = filter(DAFI.supp.shp, !is.na(MaxPrev)), 
+  #geom_point(data = filter(DAFI.supp.shp.SNGO, !is.na(MaxPrev)), 
+  geom_point(data = filter(DAFI.supp.shp.SNGO.n306, !is.na(MaxPrev)), 
              aes(fill=MaxPrev, x=Longitude, y=Latitude),
              size=2,shape=21,,colour='black', alpha=1) +
   scale_fill_distiller(palette='Reds') +
