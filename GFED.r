@@ -106,8 +106,8 @@ plot(GFED_dBA, main="GFED dBA", col=divergentColors("blue", "red",
 
 ##plotting
 plot(GFED_dBF, main="GFED dBF", col=divergentColors("blue", "red",
-                                                    min.value=minmax(GFED_dBA*100)[1], 
-                                                    max.value=minmax(GFED_dBA*100)[2],
+                                                    min.value=minmax(GFED_dBF*100)[1], 
+                                                    max.value=minmax(GFED_dBF*100)[2],
                                                     mid.value=0, mid.color="lightgrey"))
 
 
