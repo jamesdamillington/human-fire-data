@@ -17,8 +17,12 @@ NAbb <- c(-170, 15, -50, 70)
 EUbb <- c(-10, 35, 45, 70)
 
 SAsiabb <- c(70, -10, 160, 35)
+SAsiaNOzbb <- c(70, -20, 150, 30)
 NAsiabb <- c(45, 20, 170, 70)
-worldbb <- c(-180, -60, 180, 80)
+EASbb <- c(70, 0, 140, 60)
+SEASbb <- c(70,5,110,35)
+
+worldbb <- c(-170, -60, 178, 80)
 
 bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb)
 
@@ -204,7 +208,7 @@ plot(GFUS.15a.shp['mean15a'])
 
 st_write(GFUS.15a.shp, "data\\GFU_15a.shp", driver = "ESRI Shapefile")
 
-mapbbox <- NAbb
+mapbbox <- EUbb
 
 for(mapbbox in bboxes){
 #plot
@@ -212,7 +216,7 @@ g <- ggplot() +
   geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
   geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
   #geom_sf(data = filter(GFUS.15a.shp, !is.na(count)), aes(fill = count), color=NA) + 
-  scale_fill_distiller(palette='BuPu') +
+  scale_fill_distiller(palette='Reds') +
   new_scale_fill() +
   #geom_point(data = filter(DAFI.supp.all, !is.na(meanMP)), 
   geom_point(data = filter(DAFI.supp.sngo, !is.na(meanMP)), 
@@ -371,11 +375,11 @@ for(mapbbox in bboxes){
     geom_raster(data = as.data.frame(GFED16_dBF, xy = TRUE), 
                 aes(x = x, y = y, fill = dBF)) + 
     scale_fill_continuous_divergingx(palette='RdYlBu') +
-    coord_quickmap() +
-    geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
+    #coord_quickmap() +
+    #geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
     geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
                aes(x=LONGITUDE, y=LATITUDE), 
-               size=1,shape=21,fill='red',colour='black', alpha=0.5, stroke=0.2) +
+               size=1,shape=3,fill='red',colour='black', alpha=0.5, stroke=0.2) +
     coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
     theme_light() +
     theme(axis.title.x = element_blank(),
