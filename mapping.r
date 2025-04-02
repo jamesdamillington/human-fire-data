@@ -92,8 +92,8 @@ GFUS.raw.split <- separate_longer_delim(GFUS.raw, 'Q1b', delim=",")
 
 ## Analysis
 
-#prevention 
-DAFI.supp.summ <- DAFI.supp %>% 
+#suppression (all actors)
+DAFI.supp.all <- DAFI.supp %>% 
   #get the maximum level from across the different types of prevention
   mutate(MaxPrev = pmax(`Fire control (0-3)`,
                         `Fire prevention (0-3)`,
@@ -104,26 +104,67 @@ DAFI.supp.summ <- DAFI.supp %>%
                              MaxPrev == 2 ~ 2,
                              MaxPrev == 3 ~ 1,
                              MaxPrev == 0 ~ NA)) %>%
-  mutate(DB="DAFI") 
-
-
-#get coords and select necessary cols
-DAFI.supp.shp <- DAFI.supp.summ %>%
-  right_join(DAFI.shp) %>%
+  filter(!is.na(MaxPrev)) %>%
+  #summarise by Case Study
+  group_by(`Case Study ID`) %>%
+  summarise(meanMP = mean(MaxPrev, na.rm=T), 
+            maxMP=max(MaxPrev, na.rm=T), 
+            minMP=min(MaxPrev, na.rm=T), 
+            count=n()) %>%
+  #add spatial data 
+  full_join(DAFI.shp) %>%
+  filter(!is.na(count)) %>%
+  filter(!is.na(Latitude) & !is.na(Longitude)) %>%
   rename(ID=`Case Study ID`) %>%
-  select(ID, AFT, Latitude, Longitude, MaxPrev, DB)
+  select(ID, Latitude, Longitude, meanMP, maxMP, minMP, count)
 
+
+
+
+#suppression (state and non-state agencies)
 #DAFI.supp.AFTs <- unique(DAFI.supp$AFT)
 
-DAFI.supp.shp.SNGO <- DAFI.supp.shp %>%
+DAFI.supp.sngo <- DAFI.supp %>% 
+  #get actors we want
   filter(AFT == "Fire suppression agent" |
            AFT == "Conservationist (Fire exclusion)" |
            AFT == "State land manager" |
            AFT == "Conservationist" |
-           AFT == "Conservationist (Pyro-diversity)")
+           AFT == "Conservationist (Pyro-diversity)") %>%
+  #get the maximum level from across the different types of prevention
+  mutate(MaxPrev = pmax(`Fire control (0-3)`,
+                        `Fire prevention (0-3)`,
+                        `Fire extinction (0-3)`,
+                        na.rm=T)) %>%
+  #reverse the scale to match GFUS (1 is high)
+  mutate(MaxPrev = case_when(MaxPrev == 1 ~ 3,
+                             MaxPrev == 2 ~ 2,
+                             MaxPrev == 3 ~ 1,
+                             MaxPrev == 0 ~ NA)) %>%
+  filter(!is.na(MaxPrev)) %>%
+  #summarise by Case Study
+  group_by(`Case Study ID`) %>%
+  summarise(meanMP = mean(MaxPrev, na.rm=T), 
+            maxMP=max(MaxPrev, na.rm=T), 
+            minMP=min(MaxPrev, na.rm=T), 
+            count=n()) %>%
+  #add spatial data 
+  full_join(DAFI.shp) %>%
+  filter(!is.na(count)) %>%
+  filter(!is.na(Latitude) & !is.na(Longitude)) %>%
+  rename(ID=`Case Study ID`) %>%
+  select(ID, Latitude, Longitude, meanMP, maxMP, minMP, count)
 
-DAFI.supp.shp.SNGO.n306 <- DAFI.supp.shp.SNGO %>%
-  filter(!grepl("306",ID))
+#write data if needed
+#DAFI.supp.all.sf <-st_as_sf(DAFI.supp.all, coords = c("Longitude", "Latitude"), remove = FALSE, crs = 4326)
+#st_write(DAFI.supp.all.sf, "data\\DAFI_supp_all.shp", driver = "ESRI Shapefile")
+
+#DAFI.supp.sngo.sf <- st_as_sf(DAFI.supp.sngo, coords = c("Longitude", "Latitude"), remove = FALSE, crs = 4326)
+#st_write(DAFI.supp.sngo.sf, "data\\DAFI_supp_sngo.shp", driver = "ESRI Shapefile")
+
+#old check
+#DAFI.supp.sngo.n306 <- DAFI.supp.sngo %>%
+#  filter(!grepl("306",ID))
 
 
 LIFE.supp.summ <- LIFE.supp %>% 
@@ -161,7 +202,7 @@ GFUS.15a.shp <- GFUS.Q15a.regions %>%
 
 plot(GFUS.15a.shp['mean15a'])
 
-
+st_write(GFUS.15a.shp, "data\\GFU_15a.shp", driver = "ESRI Shapefile")
 
 mapbbox <- NAbb
 
@@ -169,14 +210,13 @@ for(mapbbox in bboxes){
 #plot
 g <- ggplot() + 
   geom_sf(data = st_geometry(GFUS.15a.shp), color='lightgrey') +
-  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), 
-          color=NA) + 
-  scale_fill_distiller(palette='Reds') +
+  geom_sf(data = filter(GFUS.15a.shp, !is.na(mean15a)), aes(fill = mean15a), color=NA) + 
+  #geom_sf(data = filter(GFUS.15a.shp, !is.na(count)), aes(fill = count), color=NA) + 
+  scale_fill_distiller(palette='BuPu') +
   new_scale_fill() +
-  #geom_point(data = filter(DAFI.supp.shp, !is.na(MaxPrev)), 
-  #geom_point(data = filter(DAFI.supp.shp.SNGO, !is.na(MaxPrev)), 
-  geom_point(data = filter(DAFI.supp.shp.SNGO.n306, !is.na(MaxPrev)), 
-             aes(fill=MaxPrev, x=Longitude, y=Latitude),
+  #geom_point(data = filter(DAFI.supp.all, !is.na(meanMP)), 
+  geom_point(data = filter(DAFI.supp.sngo, !is.na(meanMP)), 
+             aes(fill=meanMP, x=Longitude, y=Latitude),
              size=2,shape=21,,colour='black', alpha=1) +
   scale_fill_distiller(palette='Reds') +
   theme_light() +
@@ -184,7 +224,7 @@ g <- ggplot() +
         axis.title.y = element_blank()) +
   coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4]))  +
   #ggtitle("Supp/Prev/Control (1 high) - GFUS Polys - DAFI Points (All)") +
-  ggtitle("Supp/Prev/Control (1 high) - GFUS Polys - DAFI Points (State, NGO, no #306)") 
+  ggtitle("Supp/Prev/Control (1 high) - GFUS Polys - DAFI Points (State, NGO)") 
   
   
 
