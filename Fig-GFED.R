@@ -45,7 +45,7 @@ GFUS.shp <- st_read("data\\Shiny_app\\data\\Meta_data.shp")
 GFUS.shp <- GFUS.shp %>%
   select(regnum, ecoregion, political, CONTINENT, area, season, geometry)
 
-#bb <- Afbb
+#i <- 9
 
 #burned fraction
 for (i in seq_along(bboxes)) {
