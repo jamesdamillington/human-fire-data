@@ -1,12 +1,8 @@
 library(readxl)
-#library(foreign)  #to read .dbf
 library(sf)
 library(tidyverse)
 library(ggplot2)
 library(ggnewscale)
-#library(terra)
-#library(colorspace)
-
 
 #spatial zoom
 Afbb <- c(-20,-35,55,35)
