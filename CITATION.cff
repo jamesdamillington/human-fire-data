@@ -6,4 +6,7 @@ authors:
     orcid: https://orcid.org/0000-0002-5099-0001
 title: "human-fire-data"
 version: 1.0.1
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.19485181
 date-released: 2026-04-09

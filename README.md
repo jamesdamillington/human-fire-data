@@ -1,5 +1,7 @@
 # Human Fire Data
 
+https://zenodo.org/badge/DOI/10.5281/zenodo.19485181.svg](https://doi.org/10.5281/zenodo.19485181)
+
 This repository contains code for mapping three global databases of human fire, plus data from the Global Fire Emissions Database:
 - [mapping.r](mapping.r) handles [DAFI](https://doi.org/10.6084/m9.figshare.c.5290792.v4), [LIFE](https://doi.org/10.17637/rh.c.5469993) and [GFUS](https://doi.org/10.5281/zenodo.10671047) 
 - [GFED.r](GFED.r) handles [GFED4](https://www.globalfiredata.org/related.html#gfed4) and [GFED5](https://www.globalfiredata.org/data.html) 
