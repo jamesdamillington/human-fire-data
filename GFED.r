@@ -23,7 +23,10 @@ summary(GFED5_BA)
 
 GFED5_sumBA <- sum(GFED5_BA)
 GFED5_sumBA[GFED5_sumBA==0] <- NA
-plot(GFED5_sumBA, main="GFED5 BA")
+
+#png("png/gfed/Fig_GFED5-2016-BA.png", width=1800, height=1200, res=300, type="cairo")
+plot(GFED5_sumBA, main="GFED5 2016, Burned Area (sq km)")
+#dev.off()
 
 
 #this was used to check if BurnableArea was same as GFED4s ancil grid_cell_area below
@@ -34,10 +37,13 @@ plot(GFED5_sumBA, main="GFED5 BA")
 #calc cell size for burned fraction calc
 GFED5_CS <- cellSize(GFED5_sumBA)
 GFED5_CSkm <- GFED5_CS / 1000000
-plot(GFED5_CSkm, main="GFED5 CS")
+#plot(GFED5_CSkm, main="GFED5 CS")
 
 GFED5_sumBF <- GFED5_sumBA / GFED5_CSkm
+
+#png("png/gfed/Fig_GFED5-2016-BF.png", width=1800, height=1200, res=300, type="cairo")
 plot(GFED5_sumBF, main="GFED5 2016, Burned Fraction")
+#dev.off()
 
 ##GFED4
 #with help from https://www.neonscience.org/resources/learning-hub/tutorials/create-raster-stack-hsi-hdf5-r
@@ -61,7 +67,10 @@ summary(GFED4_BF)
 
 GFED4_sumBF <- sum(GFED4_BF)
 GFED4_sumBF[GFED4_sumBF==0] <- NA
+
+#png("png/gfed/Fig_GFED4-2016-BF.png", width=1800, height=1200, res=300, type="cairo")
 plot(GFED4_sumBF, main="GFED4 2016, Burned Fraction")
+#dev.off()
 
 #get cell area (convert to km2) to multiply by burned_fraction
 ancil <- h5read("data\\GFED4\\GFED4.1s_2016.hdf5", name="//ancill/grid_cell_area")
@@ -76,9 +85,10 @@ plot(GFED5_CS, ancil) #calculated cellsize and ancil are identical
 
 GFED4_sumBA <- sum(GFED4_BA)
 GFED4_sumBA[GFED4_sumBA==0] <- NA
+
+#png("png/gfed/Fig_GFED4-2016-BA.png", width=1800, height=1200, res=300, type="cairo")
 plot(GFED4_sumBA, main="GFED4 2016, Burned Area (sq km)")
-
-
+#dev.off()
 
 
 
@@ -98,26 +108,4 @@ writeCDF(GFED_dBF, "data\\GFED_dBF_2016.nc", varname="dBF",
 
 
 
-##plotting
-plot(GFED_dBA, main="GFED dBA", col=divergentColors("blue", "red",
-                                                    min.value=minmax(GFED_dBA)[1], 
-                                                    max.value=minmax(GFED_dBA)[2],
-                                                    mid.value=0, mid.color="lightgrey"))
 
-##plotting
-plot(GFED_dBF, main="GFED dBF", col=divergentColors("blue", "red",
-                                                    min.value=minmax(GFED_dBF*100)[1], 
-                                                    max.value=minmax(GFED_dBF*100)[2],
-                                                    mid.value=0, mid.color="lightgrey"))
-
-
-GFEDpos <- GFEDdiff
-GFEDpos[GFEDpos<=0] <- NA
-plot(GFEDpos, col="grey", main="Increased")
-
-
-GFEDneg <- GFEDdiff
-GFEDneg[GFEDneg>=0] <- NA
-plot(GFEDneg, col="grey", main="Decreased")
-
-      
