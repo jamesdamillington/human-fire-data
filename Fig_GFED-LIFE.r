@@ -1,9 +1,12 @@
 library(terra)
-library(rhdf5)  #I needed to install via BiocManager::install("rhdf5") for R 4.4.3 (on 20/03/25) 
-library(quickPlot)   #for divergent colout palette
+library(rhdf5)  #I needed to install via BiocManager::install("rhdf5") for R 4.5.2 
+library(quickPlot)   #for divergent colour palette
 library(ncdf4)
 library(colorspace)
-
+library(sf)
+library(readxl)
+library(tidyverse)
+library(ggplot2)
 
 #GFED4s data for 2020 seems to be missing burned_area variables
 #GFED4_2020 <- rast("data\\GFED4\\GFED4.1s_2020_beta.hdf5", subds="//burned_area/04/burned_fraction")
