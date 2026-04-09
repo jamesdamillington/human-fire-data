@@ -4,9 +4,10 @@ library(sf)
 library(dplyr)
 library(ggplot2)
 
+#produced by GFED.r
 GFED_2016dBF <- rast("data\\GFED_dBF_2016.nc")
-
 GFED_2016dBA <- rast("data\\GFED_dBA_2016.nc")
+
 
 #spatial zoom
 Afbb <- c(-20,-35,55,35)

@@ -1,79 +1,13 @@
 library(terra)
-library(rhdf5)  #I needed to install via BiocManager::install("rhdf5") for R 4.5.2 
-library(quickPlot)   #for divergent colour palette
-library(ncdf4)
 library(colorspace)
 library(sf)
 library(readxl)
 library(tidyverse)
 library(ggplot2)
 
-#GFED4s data for 2020 seems to be missing burned_area variables
-#GFED4_2020 <- rast("data\\GFED4\\GFED4.1s_2020_beta.hdf5", subds="//burned_area/04/burned_fraction")
-#names(GFED4_2020)
-
-
-##GFED5
-GFED5_BA <- rast("data\\GFED5\\BA201601.nc", lyrs="Total")  #check total is the layer we want!
-
-for(i in 2:12){
-  mon <- formatC(i,digits=1,format = "d", flag = "0")
-  lyr <- rast(paste0("data\\GFED5\\BA2016",mon,".nc"), lyrs="Total")
-  
-  GFED5_BA <- c(GFED5_BA, lyr)
-}
-
-#plot(GFED5_BA)
-#summary(GFED5_BA)
-
-GFED5_sumBA <- sum(GFED5_BA)
-GFED5_sumBA[GFED5_sumBA==0] <- NA
-#plot(GFED5_sumBA, main="GFED5 BA")
-
-
-#this was used to check if BurnableArea was same as GFED4s ancil grid_cell_area below
-#it is not, so use cellSize
-#GFED5_b <- rast("data\\GFED5\\BurnableArea.nc")  
-#plot(GFED5_b)
-
-#calc cell size for burned fraction calc
-GFED5_CS <- cellSize(GFED5_sumBA)
-GFED5_CSkm <- GFED5_CS / 1000000
-#plot(GFED5_CSkm, main="GFED5 CS")
-
-GFED5_sumBF <- GFED5_sumBA / GFED5_CSkm
-#plot(GFED5_sumBF, main="GFED5 2016, Burned Fraction")
-
-##GFED4
-#with help from https://www.neonscience.org/resources/learning-hub/tutorials/create-raster-stack-hsi-hdf5-r
-GFED4_BF <- h5read("data\\GFED4\\GFED4.1s_2016.hdf5", name="//burned_area/01/burned_fraction")
-GFED4_BF <- t(GFED4_BF)
-GFED4_BF <- rast(GFED4_BF, crs="epsg:4326")
-ext(GFED4_BF) <- ext(GFED5_BA)
-
-for(i in 2:12){
-  mon <- formatC(i,digits=1,format = "d", flag = "0")
-  lyr <- h5read("data\\GFED4\\GFED4.1s_2016.hdf5", name=paste0("//burned_area/",mon,"/burned_fraction"))
-  lyr <- t(lyr)
-  lyr <- rast(lyr, crs="epsg:4326")
-  ext(lyr) <- ext(GFED5_BA)
-  
-  GFED4_BF <- c(GFED4_BF, lyr)
-}
-
-#plot(GFED4_BF)
-#summary(GFED4_BF)
-
-GFED4_sumBF <- sum(GFED4_BF)
-GFED4_sumBF[GFED4_sumBF==0] <- NA
-#plot(GFED4_sumBF, main="GFED4 2016, Burned Fraction")
-
-
-GFED_dBF <- GFED5_sumBF - GFED4_sumBF
-#plot(GFED_dBF)
-#writeCDF(GFED_dBF, "data\\GFED_dBF_2016.nc", varname="dBF", 
-#         longname="difference between GFED5 BA and GFED4s BF", unit="fraction")
-
+#produced by GFED.r
+GFED_2016dBF <- rast("data\\GFED_dBF_2016.nc")
+GFED_2016dBA <- rast("data\\GFED_dBA_2016.nc")
 
 
 #spatial zoom
@@ -92,7 +26,16 @@ SEASbb <- c(70,5,110,35)
 
 worldbb <- c(-170, -60, 178, 80)
 
-bboxes <- list(Afbb, Asbb,SAbb,Ozbb, NAbb, EUbb, SAsiabb, NAsiabb)
+bboxes <- list("Africa"=Afbb,
+               "Asia"=Asbb,
+               "SAme"=SAbb,
+               "Aus"=Ozbb,
+               "NAAme"=NAbb,
+               "EU"=EUbb,
+               "SAsia"=SAsiabb,
+               "NAsia"=NAsiabb,
+               "World"=worldbb
+)
 
 
 #GFUS data from https://doi.org/10.5281/zenodo.10671047
@@ -137,17 +80,16 @@ LIFE.use <- LIFE.use %>%
   distinct(CaseID, .keep_all=T) 
 
 
+#bb <- worldbb
 
-mapbbox <- Afbb
-mapbbox <- SEASbb
-mapbbox <- worldbb
-
-for(mapbbox in bboxes){
+for (i in seq_along(bboxes)) {
+  bb <- bboxes[[i]]
+  nm <- names(bboxes)[i]
   
   g <- ggplot() +
     geom_sf(data = st_geometry(GFUS.shp), color='lightgrey') +
-    geom_raster(data = as.data.frame(GFED_dBF, xy = TRUE), 
-                aes(x = x, y = y, fill = sum)) + 
+    geom_raster(data = as.data.frame(GFED_2016dBF, xy = TRUE), 
+                aes(x = x, y = y, fill = dBF)) + 
     scale_fill_continuous_divergingx(palette='RdYlBu') +
     #coord_quickmap() +
     #geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
@@ -155,7 +97,7 @@ for(mapbbox in bboxes){
                aes(x=LONGITUDE, y=LATITUDE), 
                #size=1,shape=3,fill='red',colour='red', alpha=0.5, stroke=0.2) +
                size=1.5,shape=3,fill='red',colour='red', alpha=0.75, stroke=0.75) +
-    coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
+    coord_sf(xlim=c(bb[1],bb[3]),ylim=c(bb[2],bb[4])) +
     theme_light() +
     theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()) +
