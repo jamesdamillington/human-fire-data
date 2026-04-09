@@ -3,7 +3,6 @@ library(colorspace)   #for divergent colout palette
 library(sf)
 library(dplyr)
 library(ggplot2)
-#library(quickPlot)   #for divergent colour palette
 
 GFED_2016dBF <- rast("data\\GFED_dBF_2016.nc")
 
