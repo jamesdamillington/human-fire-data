@@ -4,7 +4,6 @@ library(sf)
 library(tidyverse)
 library(ggplot2)
 library(ggnewscale)
-library(terra)
 library(colorspace)
 
 
@@ -358,34 +357,3 @@ plot(GFUS.16a.shp['governance'])
 #and it is cases that has point locations... 
 
 
-
-##GFED  - see GFED.r
-
-GFED16_dBF <- rast("data\\GFED_dBF_2016.nc", drivers="NETCDF")
-GFED16_dBF
-
-
-
-mapbbox <- Afbb
-
-for(mapbbox in bboxes){
-  
-  g <- ggplot() +
-    geom_sf(data = st_geometry(GFUS.shp), color='lightgrey') +
-    geom_raster(data = as.data.frame(GFED16_dBF, xy = TRUE), 
-                aes(x = x, y = y, fill = dBF)) + 
-    scale_fill_continuous_divergingx(palette='RdYlBu') +
-    #coord_quickmap() +
-    #geom_sf(data = st_geometry(GFUS.shp), color='lightgrey', fill=NA) +
-    geom_point(data = filter(LIFE.use, !is.na(LIFE_SH)),
-               aes(x=LONGITUDE, y=LATITUDE), 
-               size=1,shape=3,fill='red',colour='black', alpha=0.5, stroke=0.2) +
-    coord_sf(xlim=c(mapbbox[1],mapbbox[3]),ylim=c(mapbbox[2],mapbbox[4])) +
-    theme_light() +
-    theme(axis.title.x = element_blank(),
-                axis.title.y = element_blank()) +
-    ggtitle("2016 GFED Difference (cell fraction) - LIFE Practices Data")
-
-  plot(g)
- 
-}
